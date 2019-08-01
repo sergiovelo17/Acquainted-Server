@@ -7,7 +7,7 @@ owner: { type: Schema.Types.ObjectId, ref: "User" },
 attendees: [{ type: Schema.Types.ObjectId, ref: "User" }],
 location: { type: Schema.Types.ObjectId, ref: "Places" },
 description: String,
-time: Date,
+time: String,
 photoOfEvent: String,
 })
 

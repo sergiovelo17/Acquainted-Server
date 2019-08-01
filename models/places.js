@@ -8,12 +8,15 @@ const placesSchema = new Schema({
   placeId: String,
   lat: Number,
   lng: Number,
-  photos: [String],
+  photos: [Object],
   price_level: Number,
   rating: Number,
-  type: [String],
-  reviewsCount: Number,
-  vicinity: String
+  types: [String],
+  phone: String,
+  address: String,
+  website: String,
+  hours: [String],
+  icon: String
 })
 
 const Places = mongoose.model("Places", placesSchema);
