@@ -57,7 +57,6 @@ async function addPlaces(req, res, paramRadius, zip){
       }
       })
       .then(()=>{
-
         res.json({message: 'Success'});
         return;
       })

@@ -82,7 +82,10 @@ router.get('/getPhoto/:ref',async(req,res,next)=>{
   try{
   let ref = req.params.ref;
   const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
-  res.json(onePhoto)
+
+  console.log('-------------')
+  console.log(onePhoto);
+  res.json(onePhoto.config.url)
   }catch(err){
     res.json(err);
   }
@@ -93,9 +96,16 @@ router.post('/addToFavoritePlaces/:id', async (req,res,next)=>{
     // console.log('<<<<<<<<reached here!!!!')
     if(req.user){
       const details = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?placeid=${req.params.id}&key=${process.env.GOOGLEAPI}`)
-      // console.log("-------=this is where it broke =-------");
+      console.log("-------=this is where it broke =-------");
       let content = details.data.result;
-      let photoArr = [...content.photos]
+      console.log(content)
+      let photoArr = [];
+      for(let i = 0; i < 3; i++){
+        let ref = content.photos[i].photo_reference;
+        const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
+        photoArr.push(onePhoto.request.res.responseUrl)
+      }
+      console.log('<<<<<<<<<<<<<<<reached here')
       const newPlace = await new Places({
         owner: req.user,
         placeId: req.params.id,

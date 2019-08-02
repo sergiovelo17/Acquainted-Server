@@ -132,6 +132,15 @@ router.post('/updateLocation', async (req,res,next)=>{
   }
 })
 
+router.get('/currentUser', async (req,res,next)=>{
+  try{
+    const user = await User.findById(req.user._id);
+    res.json(user);
+  }catch(err){
+    res.json(null);
+  }
+})
+
 
 
 
