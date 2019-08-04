@@ -69,13 +69,53 @@ router.get('/byCity/:radius?', async (req, res, next) => {
 });
 router.get('/placeDetails/:id', async (req,res,next)=>{
   try{
-    console.log('testing route------->');
-    console.log(req.params.id)
-    const details = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?placeid=${req.params.id}&key=${process.env.GOOGLEAPI}`)
-    console.log(details);
-    res.json(details.data.result)
+    // console.log('<<<<<<<<reached here!!!!')
+    // if(req.user){
+      const place = await Places.findOne({placeId: req.params.id})
+      // console.log(place);
+      if(place){
+        console.log('retrieved from databse')
+        res.json(place)
+      }else{
+      const details = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?placeid=${req.params.id}&key=${process.env.GOOGLEAPI}`)
+      console.log("-------=this is where it broke =-------");
+      let content = details.data.result;
+      console.log(content)
+      let photoArr = [];
+      for(let i = 0; i < 3; i++){
+        let ref = content.photos[i].photo_reference;
+        const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
+        photoArr.push(onePhoto.request.res.responseUrl)
+      }
+      console.log(content.reviews)
+      console.log('<<<<<<<<<<<<<<<reached here')
+      const newPlace = await new Places({
+        owner: req.user,
+        placeId: req.params.id,
+        lat: content.geometry.location.lat,
+        lng: content.geometry.location.lng,
+        name: content.name,
+        icon: content.icon,
+        photos: photoArr,
+        price_level: content.price_level,
+        rating: content.rating,
+        types: [...content.type],
+        phone: content.formatted_phone_number,
+        address: content.formatted_address,
+        website: content.website,
+        hours: content.opening_hours.weekday_text,
+        reviews: [...content.reviews]
+      });
+      // console.log('reached here!!!!')
+      const saved = await newPlace.save();
+      // console.log("PLACE SAVED---------->")
+      res.json(newPlace)
+    }
+    // }else{
+    //   res.json({message:"Must be logged in to get details of place"})
+    // }
   }catch(err){
-    res.json({message:"error"})
+    res.json(err)
   }
 })
 router.get('/getPhoto/:ref',async(req,res,next)=>{
@@ -95,6 +135,12 @@ router.post('/addToFavoritePlaces/:id', async (req,res,next)=>{
   try{
     // console.log('<<<<<<<<reached here!!!!')
     if(req.user){
+      const place = await Places.findOne({placeId: req.params.id})
+      console.log(place);
+      if(place){
+        const user = await User.findByIdAndUpdate(req.user._id,{$push: {favoritePlaces: place.id}})
+        res.json({message: 'added place from database'})
+      }else{
       const details = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?placeid=${req.params.id}&key=${process.env.GOOGLEAPI}`)
       console.log("-------=this is where it broke =-------");
       let content = details.data.result;
@@ -126,7 +172,8 @@ router.post('/addToFavoritePlaces/:id', async (req,res,next)=>{
       const saved = await newPlace.save();
       // console.log("PLACE SAVED---------->")
       const update = await User.findByIdAndUpdate(req.user.id,{$push: {favoritePlaces: newPlace}})
-      res.json({message:"add success!"})
+      res.json({message:"added place from Api!"})
+    }
     }else{
       res.json({message:"Must be logged in to add place"})
     }

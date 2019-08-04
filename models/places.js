@@ -16,7 +16,8 @@ const placesSchema = new Schema({
   address: String,
   website: String,
   hours: [String],
-  icon: String
+  icon: String,
+  reviews: [Object]
 })
 
 const Places = mongoose.model("Places", placesSchema);
