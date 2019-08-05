@@ -7,8 +7,9 @@ owner: { type: Schema.Types.ObjectId, ref: "User" },
 attendees: [{ type: Schema.Types.ObjectId, ref: "User" }],
 location: { type: Schema.Types.ObjectId, ref: "Places" },
 description: String,
-time: String,
+time: Date,
 photoOfEvent: String,
+title: String
 })
 
 const Events = mongoose.model("Events", eventsSchema);

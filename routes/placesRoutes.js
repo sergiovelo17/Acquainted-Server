@@ -67,53 +67,79 @@ router.get('/byCity/:radius?', async (req, res, next) => {
     res.json(err);
   }
 });
-router.get('/placeDetails/:id', async (req,res,next)=>{
+router.post('/placeDetails/:id', async (req,res,next)=>{
   try{
+    console.log(req.body.user_id)
+    // console.log(req.params.id)
     // console.log('<<<<<<<<reached here!!!!')
-    // if(req.user){
       const place = await Places.findOne({placeId: req.params.id})
-      // console.log(place);
+      const user = await User.findById(req.body.user_id)
+      console.log(user)
+      let isFavorited = false;
       if(place){
         console.log('retrieved from databse')
-        res.json(place)
+        if(user.favoritePlaces.includes(place._id)){
+          isFavorited = true;
+        }
+        res.json({place: place, isFavorited: isFavorited})
       }else{
       const details = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?placeid=${req.params.id}&key=${process.env.GOOGLEAPI}`)
-      console.log("-------=this is where it broke =-------");
+      // console.log("-------=this is where it broke =-------");
       let content = details.data.result;
-      console.log(content)
+      // console.log('+++++++++++++++',content)
       let photoArr = [];
-      for(let i = 0; i < 3; i++){
+      if(content.photos.length >= 3){
+        for(let i = 0; i < 3; i++){
+          let ref = content.photos[i].photo_reference;
+          const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
+          photoArr.push(onePhoto.request.res.responseUrl)
+        }
+      }else if(content.photos.length == 2){
+      for(let i = 0; i < 2; i++){
         let ref = content.photos[i].photo_reference;
         const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
         photoArr.push(onePhoto.request.res.responseUrl)
       }
-      console.log(content.reviews)
-      console.log('<<<<<<<<<<<<<<<reached here')
+    }else if(content.photos.length == 1){
+      let ref = content.photos[0].photo_reference;
+        const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
+        photoArr.push(onePhoto.request.res.responseUrl)
+    }
+
+      const lat = content.geometry.location.lat;
+      const lng = content.geometry.location.lng;
+      const name = content.name;
+      const icon = content.icon;
+      const price_level= content.price_level;
+      const rating= content.rating;
+      const phone = content.formatted_phone_number;
+      const address= content.formatted_address;
+      const website= content.website;
+      const hours= content.opening_hours.weekday_text;
+      const reviews= [...content.reviews];
       const newPlace = await new Places({
         owner: req.user,
         placeId: req.params.id,
-        lat: content.geometry.location.lat,
-        lng: content.geometry.location.lng,
-        name: content.name,
-        icon: content.icon,
+        lat: lat,
+        lng: lng,
+        name: name,
+        icon: icon,
         photos: photoArr,
-        price_level: content.price_level,
-        rating: content.rating,
-        types: [...content.type],
-        phone: content.formatted_phone_number,
-        address: content.formatted_address,
-        website: content.website,
-        hours: content.opening_hours.weekday_text,
-        reviews: [...content.reviews]
+        price_level: price_level,
+        rating: rating,
+        phone: phone,
+        address: address,
+        website: website,
+        hours: hours,
+        reviews: [...reviews]
       });
       // console.log('reached here!!!!')
       const saved = await newPlace.save();
+    
       // console.log("PLACE SAVED---------->")
-      res.json(newPlace)
+      res.json({place: newPlace, isFavorited: false})
     }
-    // }else{
-    //   res.json({message:"Must be logged in to get details of place"})
-    // }
+    
   }catch(err){
     res.json(err)
   }
@@ -133,53 +159,18 @@ router.get('/getPhoto/:ref',async(req,res,next)=>{
 
 router.post('/addToFavoritePlaces/:id', async (req,res,next)=>{
   try{
-    // console.log('<<<<<<<<reached here!!!!')
-    if(req.user){
-      const place = await Places.findOne({placeId: req.params.id})
-      console.log(place);
-      if(place){
-        const user = await User.findByIdAndUpdate(req.user._id,{$push: {favoritePlaces: place.id}})
-        res.json({message: 'added place from database'})
-      }else{
-      const details = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?placeid=${req.params.id}&key=${process.env.GOOGLEAPI}`)
-      console.log("-------=this is where it broke =-------");
-      let content = details.data.result;
-      console.log(content)
-      let photoArr = [];
-      for(let i = 0; i < 3; i++){
-        let ref = content.photos[i].photo_reference;
-        const onePhoto = await axios.get(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${process.env.GOOGLEAPI}`)
-        photoArr.push(onePhoto.request.res.responseUrl)
-      }
-      console.log('<<<<<<<<<<<<<<<reached here')
-      const newPlace = await new Places({
-        owner: req.user,
-        placeId: req.params.id,
-        lat: content.geometry.location.lat,
-        lng: content.geometry.location.lng,
-        name: content.name,
-        icon: content.icon,
-        photos: photoArr,
-        price_level: content.price_level,
-        rating: content.rating,
-        types: content.type,
-        phone: content.formatted_phone_number,
-        address: content.formatted_address,
-        website: content.website,
-        hours: content.opening_hours.weekday_text
-      });
-      // console.log('reached here!!!!')
-      const saved = await newPlace.save();
-      // console.log("PLACE SAVED---------->")
-      const update = await User.findByIdAndUpdate(req.user.id,{$push: {favoritePlaces: newPlace}})
-      res.json({message:"added place from Api!"})
-    }
+      // console.log(req.body)
+      // console.log(req.user)
+      if(req.body.favorited){
+        const user = await User.findByIdAndUpdate(req.user._id,{$pull: {favoritePlaces: req.params.id}})
+      res.json({message: 'successfully removed'})
     }else{
-      res.json({message:"Must be logged in to add place"})
+        const user = await User.findByIdAndUpdate(req.user._id,{$push: {favoritePlaces: req.params.id}})
+        res.json({message: 'successfully added'})
+      }
+    }catch(err){
+      res.json(err)
     }
-  }catch(err){
-    res.json(err)
-  }
 })
 
 router.get('/nextpage/:token', async(req,res,next)=>{

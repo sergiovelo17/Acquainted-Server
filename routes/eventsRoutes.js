@@ -16,9 +16,10 @@ router.post('/createEvent', async (req,res,next)=>{
           location: place._id,
           description: req.body.description,
           time: req.body.time,
+          title: req.body.title
         })
         await newEvent.save()
-        const me = await User.findByIdAndUpdate(req.user._id,{$push: {hostedEvents: newEvent}})
+        const me = await User.findByIdAndUpdate(req.user._id,{$and: [{$push: {hostedEvents: newEvent}},{$push : {upcomingEvents: newEvent._id}}]})
         res.json({message: "Event created!"})
       }else{
         res.json({message: "You must be registered as an Acquaintance to use this feature"})
@@ -33,6 +34,26 @@ router.post('/createEvent', async (req,res,next)=>{
   }
 })
 
+router.post('/getSingleEvent/:id', async (req,res,next)=>{
+  try{
+    const event = await Events.findById(req.params.id).populate('location').populate('owner').populate('attendees');
+    // console.log(event)
+    let alreadyAttending = false;
+    // const checkIfAttending = await Events.find({$and: [{_id: req.params.id}, {attendees: {$contains: req.body.user_id}}]})
+    // if(checkIfAttending){
+    //   alreadyAttending = true;
+    // }
+    event.attendees.forEach((eachPerson)=>{
+      if(eachPerson._id.equals(req.body.user_id)){
+        alreadyAttending = true;
+      }
+    })
+    res.json({event: event, attending: alreadyAttending});
+  }catch(err){
+    res.json(err)
+  }
+})
+
 router.get('/getEvents/:id', async (req,res,next)=>{
 try{
     const user = await User.findById(req.params.id)
@@ -40,14 +61,14 @@ try{
     let eventsForUser = [];
     // if(req.user){
       let geoResult = await axios.get(`https://api.opencagedata.com/geocode/v1/json?q=${user.acquaintedCity}&key=${process.env.GEOCODE}`);
-      console.log(geoResult)
+      // console.log(geoResult)
       if(req.body.zip){
         geoResult = await axios.get(`https://api.opencagedata.com/geocode/v1/json?q=${zip}&key=${process.env.GEOCODE}`);
       }
 
-    console.log(geoResult)
-    console.log('---------------------------------------')
-    console.log(allEvents[0].location)
+    // console.log(geoResult)
+    // console.log('---------------------------------------')
+    // console.log(allEvents[0].location)
 allEvents.forEach((eachEvent)=>{
   if(eachEvent.location.lat - geoResult.data.results[0].geometry.lat <= 2 &&  eachEvent.location.lat - geoResult.data.results[0].geometry.lat >= -2 && eachEvent.location.lng - geoResult.data.results[0].geometry.lng <= 2 && eachEvent.location.lng - geoResult.data.results[0].geometry.lng >=-2){
     eventsForUser.push(eachEvent)
@@ -57,6 +78,25 @@ res.json(eventsForUser)
 }catch(err){
   res.json(err)
 }
+})
+
+router.post('/attendEvent',async (req,res,next)=>{
+  try{  
+    // console.log(req.body)
+    // console.log(req.user)
+    if(req.body.attending){
+      const event = await Events.findByIdAndUpdate(req.body.eventId,{$pull: {attendees: req.user._id}}, {new: true}).populate('owner').populate('attendees').populate('location')
+      const user = await User.findByIdAndUpdate(req.user._id,{$pull: {upcomingEvents: req.body.eventId}})
+    //  console.log(event);
+      res.json(event)
+    }else{
+      const event = await Events.findByIdAndUpdate(req.body.eventId,{$push: {attendees: req.user._id}}, {new: true}).populate('owner').populate('attendees').populate('location')
+      const user = await User.findByIdAndUpdate(req.user._id,{$push: {upcomingEvents: req.body.eventId}})
+      res.json(event)
+    }
+  }catch(err){
+    res.json(err)
+  }
 })
 
 module.exports = router;
