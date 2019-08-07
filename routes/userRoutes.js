@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const cityLoader = require("../cityLoader.js");
+const cityLoaderWithNewCity = require("../cityLoaderWithNewCity.js");
+const cityLoader = require("../cityLoader.js")
 const User = require("../models/user-model");
 const bcrypt = require("bcryptjs");
 const Events = require("../models/events")
-
+const axios = require('axios')
 const passport = require("passport");
 
 router.post("/signup", async (req, res, next) => {
@@ -134,11 +135,46 @@ router.post('/updateLocation', async (req,res,next)=>{
 
 router.get('/currentUser', async (req,res,next)=>{
   try{
-    const user = await User.findById(req.user._id).populate('favoritePlaces').populate('upcomingEvents').populate('pastEvents');
+    const user = await User.findById(req.user._id).populate('favoritePlaces').populate('upcomingEvents').populate('pastEvents').populate({ path: 'upcomingEvents', populate: { path: 'location' } });;
     res.json(user);
   }catch(err){
     res.json(null);
   }
+})
+
+router.post('/editProfile', async (req,res,next)=>{
+  try{
+    const user = await User.findById(req.user._id) 
+    const userToUpdate = await User.findByIdAndUpdate(req.user._id,{
+      name: req.body.name,
+      username: req.user.username,
+      email: req.user.email,
+      acquaintedCity: req.body.city,
+      isAcquaintance: req.body.isAcquaintance
+    })
+    console.log(userToUpdate);
+    const updatedUser = await User.findById(req.user._id)
+    if(user.acquaintedCity !== req.body.city){
+      console.log('city changed')
+       cityLoaderWithNewCity(req, res, req.body.city);
+    }
+    console.log(updatedUser)
+    res.json({message: 'successfully edited user', updated: updatedUser})
+  }catch(err){
+    res.json(err)
+  }
+})
+
+router.post('/latlng', async (req,res,next)=>{
+try{
+const geoResult = await axios.get(`https://api.opencagedata.com/geocode/v1/json?q=${req.user.acquaintedCity}&key=${process.env.GEOCODE}`);
+console.log(geoResult)
+const longitude = geoResult.data.results[0].geometry.lng;
+const latitude = geoResult.data.results[0].geometry.lat;
+res.json({lat: latitude, lng: longitude})
+}catch(err){
+  res.json(err)
+}
 })
 
 

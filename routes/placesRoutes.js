@@ -69,12 +69,12 @@ router.get('/byCity/:radius?', async (req, res, next) => {
 });
 router.post('/placeDetails/:id', async (req,res,next)=>{
   try{
-    console.log(req.body.user_id)
+
+    console.log('yo')
     // console.log(req.params.id)
     // console.log('<<<<<<<<reached here!!!!')
       const place = await Places.findOne({placeId: req.params.id})
       const user = await User.findById(req.body.user_id)
-      console.log(user)
       let isFavorited = false;
       if(place){
         console.log('retrieved from databse')
@@ -124,7 +124,7 @@ router.post('/placeDetails/:id', async (req,res,next)=>{
         lng: lng,
         name: name,
         icon: icon,
-        photos: photoArr,
+        photos: [...photoArr],
         price_level: price_level,
         rating: rating,
         phone: phone,

@@ -9,7 +9,8 @@ location: { type: Schema.Types.ObjectId, ref: "Places" },
 description: String,
 time: Date,
 photoOfEvent: String,
-title: String
+title: String,
+discussion: {type: Schema.Types.ObjectId, ref: "Messages" }
 })
 
 const Events = mongoose.model("Events", eventsSchema);

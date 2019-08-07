@@ -10,17 +10,21 @@ router.post('/createEvent', async (req,res,next)=>{
   try{
     if(req.user){
       if(req.user.isAcquaintance){
-        const place = await Places.findOne({placeId: req.body.placeId})
+        const place = await Places.findOne({name: req.body.location})
+        let attendees = [];
+        attendees.push(req.user._id)
         const newEvent = await new Events({
           owner: req.user,
           location: place._id,
           description: req.body.description,
           time: req.body.time,
-          title: req.body.title
+          title: req.body.title,
+          attendees: [...attendees],
         })
         await newEvent.save()
-        const me = await User.findByIdAndUpdate(req.user._id,{$and: [{$push: {hostedEvents: newEvent}},{$push : {upcomingEvents: newEvent._id}}]})
-        res.json({message: "Event created!"})
+        await User.findByIdAndUpdate(req.user._id,{$push: {hostedEvents: newEvent._id, upcomingEvents: newEvent._id}})
+        const me = await User.findById(req.user._id).populate('upcomingEvents').populate('pastEvents').populate('hostedEvents').populate('favoritePlaces')
+        res.json({updated: me})
       }else{
         res.json({message: "You must be registered as an Acquaintance to use this feature"})
         return;
